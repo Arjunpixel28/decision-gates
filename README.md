@@ -2,7 +2,7 @@
 
 **Arjun Mani** · Independent Researcher · 2026
 
-📄 Paper: [arXiv link coming soon]
+📄 Paper: [https://zenodo.org/records/21630006](https://zenodo.org/records/21630006)
 
 ## Key Result
 
@@ -39,4 +39,4 @@ A Decision-First Architecture for coding agents with three explicit decision gat
 
 ## Citation
 
-Coming soon — arXiv preprint 2026
+Arjun Mani, "Decision Before Code: A Three-Gate Architecture for One-Shot Quality Code Generation," Zenodo, 2026. https://zenodo.org/records/21630006
