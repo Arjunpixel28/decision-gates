@@ -1,56 +1,42 @@
-# Decision-Gate Coding Model — 2× Quadro P6000 Edition
+# Decision Before Code: A Three-Gate Architecture for One-Shot Quality Code Generation
 
-Implementation of `../build-guide-decision-gates.md`, adapted from the original
-3× RTX 5090 plan to the hardware we actually have right now:
-**2× Quadro P6000 (24GB each, Pascal, compute capability 6.1)**.
+**Arjun Mani** · Independent Researcher · 2026
 
-## What changes vs. the build guide
+📄 Paper: [arXiv link coming soon]
 
-| Guide assumed (5090s) | This repo (P6000s) | Why |
+## Key Result
+
+| Arm | pass@1 | Tasks passed |
 |---|---|---|
-| bf16 training | **fp16 mixed precision with fp32 master weights** (or pure fp32 fallback) | Pascal has no bf16 |
-| flash-attn | **SDPA (default attention)** | flash-attn needs Ampere+ |
-| vLLM for the generator | **llama.cpp server (GGUF)** | vLLM requires compute capability ≥ 7.0 |
-| GPU 0 serves, GPUs 1–2 train | **GPU 0 serves generator, GPU 1 trains** | 2 cards, not 3 |
-| Full fine-tune option for 7–9B | **QLoRA only** | 24GB + no NVLink + Pascal speed |
-| Qwen3 8B full-speed | Qwen3-8B / Qwen2.5-Coder-7B-Instruct, 4-bit base | fits in 24GB with headroom |
+| Baseline (no gate) | 0.419 | 65/155 |
+| **Gated, Judge v1 (Gate 1) ★** | **0.639** | **99/155** |
+| Gated, Judge v2 | 0.548 | 85/155 |
+| Gate 2 only | 0.323 | 50/155 |
+| Gate 1 + Gate 2 | 0.503 | 78/155 |
 
-Expect training runs to be **3–6× slower** than the guide's estimates (Pascal has
-no tensor cores). A DPO LoRA run that took 2–6h on 5090s will take roughly a
-day on one P6000. That's fine — the bottleneck in this project is data quality,
-not FLOPs, exactly as the guide says.
+★ McNemar exact test p<0.000001, 95% CI [+0.142, +0.297], seed-stable across 3 runs
 
-## Layout
+## What this is
 
-```
-setup_env.sh              # Step 0: Pascal-safe environment
-sanity_check.py           # Step 0: 1-step LoRA train — run this FIRST
-scripts/serve_generator.sh# llama.cpp OpenAI-compatible server on GPU 0
-gate1/
-  01_collect_tasks.py     # pull well-specified SWE-bench Verified tasks
-  02_degrade_tasks.py     # generator strips details -> underspecified + gold
-  03_build_dpo_pairs.py   # (prompt -> chosen, rejected) DPO pairs
-  train_gate1_dpo.py      # QLoRA DPO on GPU 1
-  eval_gate1.py           # over/under-questioning + question quality metrics
-```
+A Decision-First Architecture for coding agents with three explicit decision gates:
 
-## Run order (on the GPU machine)
+- **Gate 1 (Specification Judge):** DPO-trained judge that detects underspecified requirements and asks clarifying questions before any code is written. +22pp improvement on identical generator.
+- **Gate 2 (Plan Judge):** Selects among K=5 candidate implementation plans. Regressed on HumanEval due to plan homogeneity — documented negative result.
+- **Gate 3 (Hack-Resistant Verifier):** Process reward model checking code against original spec, not proxy tests. Corrected retraining running.
 
-```bash
-bash setup_env.sh
-conda activate gates
-python sanity_check.py                       # must pass before anything else
-bash scripts/serve_generator.sh &            # GPU 0
-python gate1/01_collect_tasks.py
-python gate1/02_degrade_tasks.py
-python gate1/03_build_dpo_pairs.py
-CUDA_VISIBLE_DEVICES=1 python gate1/train_gate1_dpo.py
-python gate1/eval_gate1.py --adapter runs/gate1-dpo/final
-```
+## Key findings
 
-## Rules carried over from the guide (still apply)
+1. Decision quality is a scaling lever independent of base model capacity
+2. DPO negative-mining for clarification agents must be calibrated carefully — harder negatives caused ask-rate collapse from 91.9% → 18.9%
+3. Plan selection (Gate 2) requires benchmark-rubric alignment — HumanEval has low plan-choice variance
 
-- GPU 0 is inference-only. Never time-share it with training.
-- `data/heldout/` is frozen from day 1 — nothing ever trains on it.
-- Track every run with W&B (`wandb login` before training).
-- Version every dataset (each script writes a `meta.json` with git hash + params).
+## Models and hardware
+
+- Generator: Qwen2.5-14B-Instruct (4-bit, frozen, served via Ollama)
+- Judge: Qwen2.5-Coder-7B-Instruct + QLoRA adapters (rank 16, alpha 32)
+- Hardware: Single NVIDIA Quadro P6000 (24GB VRAM)
+- Training: DPO via TRL library, fp16
+
+## Citation
+
+Coming soon — arXiv preprint 2026
