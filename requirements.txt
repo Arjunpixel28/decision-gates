@@ -1,0 +1,15 @@
+# Verified-compatible set for QLoRA DPO/SFT training on Pascal GPUs (P6000).
+# Install torch first from the CUDA 12.1 wheel index, then the rest:
+#   pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+#   pip install -r requirements.txt
+torch==2.5.1
+transformers==4.46.3
+tokenizers>=0.20,<0.21
+huggingface-hub>=0.23.2,<1.0
+peft==0.13.2
+trl==0.12.2
+bitsandbytes
+datasets
+accelerate
+requests
+rich
